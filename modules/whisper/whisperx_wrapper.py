@@ -327,6 +327,11 @@ class WhisperXWrapper:
 
         resolved_device = self._resolve_device(diarization_params.diarization_device)
         token = diarization_params.hf_token or os.environ.get("HF_TOKEN")
+        if not token:
+            logger.warning(
+                "No HF_TOKEN found for diarization. Set it in the UI or export HF_TOKEN="
+                "'hf_...' before launching the app."
+            )
         available_compute_types = self._available_diarization_compute_types(resolved_device)
         requested_compute_type = getattr(diarization_params, "compute_type", None)
         if requested_compute_type not in available_compute_types:

@@ -62,6 +62,16 @@ class BaseTranscriptionPipeline(ABC):
         self.whisperx_wrapper: Optional[WhisperXWrapper] = None
         self.cancel_event: threading.Event | None = threading.Event()
 
+    def set_device(self, device: str) -> None:
+        """Switch the pipeline to a different compute device."""
+        if device == self.device:
+            return
+        self.offload()
+        self.device = device
+        self.available_compute_types = self.get_available_compute_type()
+        self.current_compute_type = self.get_compute_type()
+        logger.info("Switched transcription device to %s", device)
+
     def set_cancel_event(self, cancel_event: threading.Event | None) -> None:
         """Register an event that signals when ongoing work should stop."""
 

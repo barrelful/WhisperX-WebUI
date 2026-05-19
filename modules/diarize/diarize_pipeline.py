@@ -75,9 +75,32 @@ class DiarizationPipeline:
         cache_dir = cache_dir or os.path.join(WHISPERX_MODELS_DIR, "diarization")
         if isinstance(device, str):
             device = torch.device(device)
-        self.model = Pipeline.from_pretrained(
-            model_name, use_auth_token=use_auth_token, cache_dir=cache_dir
-        ).to(device=device)
+        try:
+            pipeline = Pipeline.from_pretrained(
+                model_name, use_auth_token=use_auth_token, cache_dir=cache_dir
+            )
+        except AttributeError as exc:
+            if "'NoneType' object has no attribute" in str(exc):
+                raise RuntimeError(
+                    "Diarization failed because a required model could not be downloaded. "
+                    "This usually means authentication is missing or the model terms were not accepted.\n\n"
+                    "Required steps:\n"
+                    "1. Go to https://huggingface.co/settings/tokens and create a token with READ permission.\n"
+                    "2. Accept the terms at BOTH of these pages:\n"
+                    "   - https://huggingface.co/pyannote/speaker-diarization-3.1\n"
+                    "   - https://huggingface.co/pyannote/segmentation-3.0\n"
+                    "3. Export the token before launching the app:\n"
+                    "   export HF_TOKEN='hf_your_token_here'"
+                ) from exc
+            raise
+        if pipeline is None:
+            raise RuntimeError(
+                f"Failed to load diarization pipeline '{model_name}'. "
+                "Ensure you have accepted the terms at "
+                "https://huggingface.co/pyannote/speaker-diarization-3.1 "
+                "and provided a valid HF_TOKEN with READ permission."
+            )
+        self.model = pipeline.to(device=device)
 
         if compute_type not in (None, "float32"):
             logger.warning(

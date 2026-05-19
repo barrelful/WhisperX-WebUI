@@ -61,6 +61,7 @@ class App:
             uvr_model_dir=self.args.uvr_model_dir,
             output_dir=self.args.output_dir,
         )
+        self.whisper_inf.set_device("cpu")
         self.cancel_event = threading.Event()
         self.whisper_inf.set_cancel_event(self.cancel_event)
         self.nllb_inf = NLLBInference(
