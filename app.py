@@ -8,12 +8,21 @@ from gradio_i18n import Translate, gettext as _
 import yaml
 import re
 import torch
-import omegaconf
 
-# --- PYTORCH 2.6+ PYANNOTE SECURITY FIX ---
-# Pyannote weights use omegaconf.listconfig.ListConfig.
-# We must explicitly tell PyTorch it is safe to load.
-torch.serialization.add_safe_globals([omegaconf.listconfig.ListConfig])
+# --- PYTORCH 2.6+ LEGACY CHECKPOINT COMPATIBILITY ---
+# PyTorch 2.6 changed torch.load default to weights_only=True, breaking
+# legacy pyannote/whisperx checkpoints that use types not in the default
+# allowlist. We patch torch.load to default weights_only=False so trusted
+# model weights load correctly.
+_original_torch_load = torch.load
+
+def _patched_torch_load(*args, **kwargs):
+    if kwargs.get("weights_only") is None:
+        kwargs["weights_only"] = False
+    return _original_torch_load(*args, **kwargs)
+
+
+torch.load = _patched_torch_load
 # ------------------------------------------
 
 from modules.utils.paths import (FASTER_WHISPER_MODELS_DIR, DIARIZATION_MODELS_DIR, OUTPUT_DIR, WHISPER_MODELS_DIR,
@@ -586,6 +595,18 @@ class App:
                 with gr.Row():
                     with gr.Column():
                         gr.Markdown(MARKDOWN, elem_id="md_project")
+                with gr.Row():
+                    dd_device = gr.Dropdown(
+                        choices=["cpu", "cuda"] if torch.cuda.is_available() else ["cpu"],
+                        value="cpu",
+                        label=_("Device"),
+                        info=_("Compute device for transcription"),
+                    )
+                dd_device.change(
+                    fn=self.whisper_inf.set_device,
+                    inputs=[dd_device],
+                    outputs=[],
+                )
                 with gr.Tabs():
                     with gr.TabItem(_("File")):  # tab1
                         with gr.Column():
